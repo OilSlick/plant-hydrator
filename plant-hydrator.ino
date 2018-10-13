@@ -24,7 +24,9 @@ int soilMoisture;                     //soil moisture reading from hygrometer
 int lowestRaw = 2047;                 //used while calibrating
 int rawReading;                       //the raw reading from FC-28
 
-bool debug = false;                   //Enable debugging with "1"
+bool debug = true;                   //Enable debugging with "true"
+bool debugPrinted = false;            //track if we've printed debug data (don't spam serial console)
+
 bool WiFiError = false;               //Track WiFi connection error
 bool IOconnERROR = false;             //Track connection failures
 bool timeError = false;               //If can't get time, keep pump off
@@ -33,11 +35,13 @@ int pumpTime = 35;                    //How many seconds of pumping
 int pumpTimeOn;                       //Track when pump was turned on
 int thisSecond;                       //right.this.second
 int lastPumpOn = 0;                   //prevent over-watering
-int PumpOnceInHours = 24;             //example; 24 = pump only once every 24 hours
+int PumpOnceInHours = 8;              //example; 24 = pump only once every 24 hours
 bool recentlyPumped = false;          //Resets at currenthour + PumpOnceInHours
 int lastPumpHour;                     //track hour of last pump time
-int nextPumpHour;                     //Next earliest pump time (lastPumHour + PumpOnceInHours) 
 int minMoisture = 30;                 //Minimum moisture percentage before pump turns on (or after-which it turns off)
+
+bool loggedMoisture = false;          //log moisture to io.Adafruit only once an hour
+bool loggedPump = false;              //log pump action to io.Adafruit only once per action
 
 //NTP settings
 //From: https://github.com/espressif/arduino-esp32/issues/821
@@ -54,8 +58,7 @@ int tmYear;
 int tmWeekday;
 
 //For Adafruit IO
-AdafruitIO_Feed *nightmodeButtonFeed = io.feed("alarm-nightmode");
-AdafruitIO_Feed *logFeed = io.feed("alarm-log");
+AdafruitIO_Feed *moistureFeed = io.feed("moisture-log");
 
 void setup() {
   analogReadResolution(11); 
@@ -80,7 +83,7 @@ void setup() {
   display.clearDisplay();
   
   Serial.begin(115200);
-  if ( debug == 1)
+  if ( debug == true )
   {
     Serial.setDebugOutput(true);
     if ( Serial )
@@ -101,10 +104,10 @@ void setup() {
     display.display();
     display.clearDisplay();
     // connect to io.adafruit.com
-    // io.connect();
+    io.connect();
     // attach message handler for the each feed
 
-    logFeed->onMessage(handleMessage);
+    moistureFeed->onMessage(handleMessage);
 
     // wait for a connection
     int IOconnAttempt = 0;
@@ -113,7 +116,6 @@ void setup() {
       Serial.print(".");
       display.print(".");
       display.display();
-      display.clearDisplay();
       delay(500);
       IOconnAttempt++;
     }
@@ -154,6 +156,7 @@ void setup() {
   display.print(tmMinute);
   display.display(); 
   display.clearDisplay();
+  moistureFeed->save("DEVICE: ready");
 }
 
 void loop() {
@@ -161,26 +164,50 @@ void loop() {
   {
     Connect();
   }
-  
+  cycleCheck();                       //checks if we're within a pump cycle (if inside, not okay to pump)
+  if ( debug == true && debugPrinted == false && ( tmSecond % 15 == 0) )  //every 15 seconds, print debug data
+  {
+    debugPrinted = true;
+    Serial.println(" ");
+    printLocalTime();
+    Serial.print("WiFiError: ");
+    Serial.println( WiFiError );
+    Serial.print("IOconnERROR: ");
+    Serial.println( IOconnERROR );
+    Serial.print("recently pumped: ");
+    Serial.println( recentlyPumped );
+    Serial.print("lastPumpHour: ");
+    Serial.println( lastPumpHour );
+    Serial.print("minMoisture: ");
+    Serial.println( minMoisture );
+
+    Serial.println("=======================");
+  } else if ( debugPrinted == true && ( tmSecond % 15 != 0) )
+  {
+    debugPrinted = false;
+  }
   readMoisture();
+  if ( tmMinute == 0 && loggedMoisture == false )               //top of every hour, log moisture
+  {
+   moistureFeed->save( soilMoisture );
+   loggedMoisture = true;
+  } else if ( tmMinute != 0 && loggedMoisture == true )          //reset conditions so we can log again next hour
+  {
+    loggedMoisture = false;
+  }
   if ( soilMoisture > minMoisture && pumpOn == true )    //failsafe so we don't over-water if pump timer fails or soil hydrated
   { 
-    digitalWrite(PumpPin, LOW);       //turn pump off 
-    pumpOn = false;    
+    turnPumpOff(); 
   }
   
   if ( rawReading < lowestRaw )
   {
     lowestRaw = rawReading;
-    Serial.print("Raw reading: ");
+    Serial.print("New low (raw): ");
     Serial.println(rawReading);
     displayTimeMoisture();
   }
   
-  if ( debug == true )
-  {
-    printLocalTime();
-  }
   if ( WiFiError == 0 && IOconnERROR == 0 )
   {
     io.run();
@@ -194,11 +221,16 @@ void loop() {
     displayTimeMoisture();
   }
   
-  if ( soilMoisture < 30 && timeError == false && recentlyPumped == false ) 
+  if ( soilMoisture < minMoisture && timeError == false && recentlyPumped == false ) 
   {
     recentlyPumped = true;
-    nextPumpHour = tmHour + PumpOnceInHours;
+    lastPumpHour = tmHour;
     pumpTimeOn = ( tmHour * 3600 ) + ( tmMinute * 60 ) + tmSecond; //get seconds of the day to measure pump duration
+
+    if ( Serial )
+    {
+      Serial.println("Pump On");
+    }
 
     digitalWrite(PumpPin, HIGH);       //turn pump on 
     pumpOn = true;
@@ -207,11 +239,21 @@ void loop() {
     display.println("Pump on");
     display.display(); 
     display.clearDisplay();
+    moistureFeed->save("PUMP: On");
   }
   if ( pumpOn == true && thisSecond > pumpTimeOn + pumpTime )  //basic pump timer
   {
-    digitalWrite(PumpPin, LOW);       //turn pump off 
-    pumpOn = false;
+    turnPumpOff();
+  }
+}
+void turnPumpOff()
+{
+  digitalWrite(PumpPin, LOW);       //turn pump off 
+  pumpOn = false;
+  moistureFeed->save("PUMP: Off");
+  if ( Serial )
+  {
+    Serial.println("Pump Off");
   }
 }
 void readMoisture()
@@ -225,12 +267,11 @@ void readMoisture()
 void cycleCheck()
 {
   getTimeValues();
-
   if ( lastPumpHour > tmHour )        //compensate for "round the clock" or past midnight issue
   {
     tmHour += 24;                     //add 24 hours to compensate for rounding the clock 
   }
-  if ( tmHour + PumpOnceInHours > lastPumpHour )
+  if ( tmHour > lastPumpHour + PumpOnceInHours)
   { //outside pump cycle, okay to pump
     if ( recentlyPumped == true )
     {
