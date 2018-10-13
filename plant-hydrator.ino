@@ -35,6 +35,8 @@ int thisSecond;                       //right.this.second
 int lastPumpOn = 0;                   //prevent over-watering
 int PumpOnceInHours = 24;             //example; 24 = pump only once every 24 hours
 bool recentlyPumped = false;          //Resets at currenthour + PumpOnceInHours
+int lastPumpHour;                     //track hour of last pump time
+int nextPumpHour;                     //Next earliest pump time (lastPumHour + PumpOnceInHours) 
 
 //NTP settings
 //From: https://github.com/espressif/arduino-esp32/issues/821
@@ -159,11 +161,7 @@ void loop() {
     Connect();
   }
   
-  soilMoisture = analogRead(hygroPin);
-  rawReading = soilMoisture;
-  //soilMoisture = constrain(soilMoisture, 700, 2047);
-  soilMoisture = map(soilMoisture, 1200, 2047, 100, 0);
-  //soilMoisture = map(soilMoisture,550,0,0,100); //map analog vals 0 - 1023 to 0-100
+  readMoisture();
   
   if ( rawReading < lowestRaw )
   {
@@ -193,6 +191,7 @@ void loop() {
   if ( soilMoisture < 30 && timeError == false && recentlyPumped == false ) 
   {
     recentlyPumped = true;
+    nextPumpHour = tmHour + PumpOnceInHours;
     pumpTimeOn = ( tmHour * 3600 ) + ( tmMinute * 60 ) + tmSecond; //get seconds of the day to measure pump duration
 
     digitalWrite(PumpPin, HIGH);       //turn pump on 
@@ -207,6 +206,30 @@ void loop() {
   {
     digitalWrite(PumpPin, LOW);       //turn pump off 
     pumpOn = false;
+  }
+}
+void readMoisture()
+{
+  soilMoisture = analogRead(hygroPin);
+  rawReading = soilMoisture;
+  //soilMoisture = constrain(soilMoisture, 700, 2047);
+  soilMoisture = map(soilMoisture, 1200, 2047, 100, 0);
+  //soilMoisture = map(soilMoisture,550,0,0,100); //map analog vals 0 - 1023 to 0-100
+}
+void cycleCheck()
+{
+  getTimeValues();
+
+  if ( lastPumpHour > tmHour )        //compensate for "round the clock" or past midnight issue
+  {
+    tmHour += 24;                     //add 24 hours to compensate for rounding the clock 
+  }
+  if ( tmHour + PumpOnceInHours > lastPumpHour )
+  { //outside pump cycle, okay to pump
+    if ( recentlyPumped == true )
+    {
+      recentlyPumped = false;
+    }
   }
 }
 void displayTime()
