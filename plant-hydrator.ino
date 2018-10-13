@@ -61,8 +61,9 @@ int tmWeekday;
 AdafruitIO_Feed *moistureFeed = io.feed("moisture-log");
 
 void setup() {
-  analogReadResolution(11); 
-  analogSetAttenuation(ADC_6db);
+  analogReadResolution(12); //default is 12 (bits)
+  analogSetAttenuation(ADC_11db);
+  //2 settings above from: https://github.com/espressif/arduino-esp32/issues/683#issuecomment-336681899
   pinMode(PumpPin, OUTPUT);          //Pin controls pump
   digitalWrite(PumpPin, LOW);       //keep pump off 
 
@@ -260,9 +261,8 @@ void readMoisture()
 {
   soilMoisture = analogRead(hygroPin);
   rawReading = soilMoisture;
-  //soilMoisture = constrain(soilMoisture, 700, 2047);
-  soilMoisture = map(soilMoisture, 1200, 2047, 100, 0);
-  //soilMoisture = map(soilMoisture,550,0,0,100); //map analog vals 0 - 1023 to 0-100
+  soilMoisture = constrain(soilMoisture, 1200, 4095);
+  soilMoisture = map(soilMoisture, 1200, 4095, 100, 0); //Low voltage/analog read = high moisture content
 }
 void cycleCheck()
 {
@@ -272,10 +272,11 @@ void cycleCheck()
     tmHour += 24;                     //add 24 hours to compensate for rounding the clock 
   }
   if ( tmHour > lastPumpHour + PumpOnceInHours)
-  { //outside pump cycle, okay to pump
-    if ( recentlyPumped == true )
+  { 
+    if ( recentlyPumped == true )    //outside pump cycle; okay to pump
     {
       recentlyPumped = false;
+      moistureFeed->save("New pump cycle");
     }
   }
 }
