@@ -37,6 +37,7 @@ int PumpOnceInHours = 24;             //example; 24 = pump only once every 24 ho
 bool recentlyPumped = false;          //Resets at currenthour + PumpOnceInHours
 int lastPumpHour;                     //track hour of last pump time
 int nextPumpHour;                     //Next earliest pump time (lastPumHour + PumpOnceInHours) 
+int minMoisture = 30;                 //Minimum moisture percentage before pump turns on (or after-which it turns off)
 
 //NTP settings
 //From: https://github.com/espressif/arduino-esp32/issues/821
@@ -162,6 +163,11 @@ void loop() {
   }
   
   readMoisture();
+  if ( soilMoisture > minMoisture && pumpOn == true )    //failsafe so we don't over-water if pump timer fails or soil hydrated
+  { 
+    digitalWrite(PumpPin, LOW);       //turn pump off 
+    pumpOn = false;    
+  }
   
   if ( rawReading < lowestRaw )
   {
