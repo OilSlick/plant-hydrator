@@ -6,10 +6,14 @@
 #include <Adafruit_GFX.h>             //For OLED
 #include <Adafruit_SSD1306.h>         //For OLED
 
+//enable deep sleep from http://educ8s.tv/esp32-deep-sleep-tutorial/
+#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
+#define TIME_TO_SLEEP  3300        /* Time ESP32 will go to sleep (in seconds) */
+RTC_DATA_ATTR int bootCount = 0;
+
 //Begin OLED shite
 #define OLED_RESET 13
 Adafruit_SSD1306 display(OLED_RESET);
-
 
 #if (SSD1306_LCDHEIGHT != 32)
 #error("Height incorrect, please fix Adafruit_SSD1306.h!");
@@ -24,7 +28,7 @@ int soilMoisture;                     //soil moisture reading from hygrometer
 int lowestRaw = 2047;                 //used while calibrating
 int rawReading;                       //the raw reading from FC-28
 
-bool debug = true;                   //Enable debugging with "true"
+bool debug = false;                   //Enable debugging with "true"
 bool debugPrinted = false;            //track if we've printed debug data (don't spam serial console)
 
 bool WiFiError = false;               //Track WiFi connection error
@@ -35,7 +39,7 @@ int pumpTime = 35;                    //How many seconds of pumping
 int pumpTimeOn;                       //Track when pump was turned on
 int thisSecond;                       //right.this.second
 int lastPumpOn = 0;                   //prevent over-watering
-int PumpOnceInHours = 5;              //example; 24 = pump only once every 24 hours
+int PumpOnceInHours = 24;              //example; 24 = pump only once every 24 hours
 bool recentlyPumped = false;          //Resets at currenthour + PumpOnceInHours
 int lastPumpHour;                     //track hour of last pump time
 int minMoisture = 30;                 //Minimum moisture percentage before pump turns on (or after-which it turns off)
@@ -61,6 +65,14 @@ int tmWeekday;
 AdafruitIO_Feed *moistureFeed = io.feed("moisture-log");
 
 void setup() {
+  //Increment boot number and print it every reboot
+  ++bootCount;
+  Serial.println("Boot number: " + String(bootCount));
+  //First we configure the wake up source We set our ESP32 to wake up every 15 seconds
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) +
+  " Seconds");
+  
   analogReadResolution(12); //default is 12 (bits)
   analogSetAttenuation(ADC_11db);
   //2 settings above from: https://github.com/espressif/arduino-esp32/issues/683#issuecomment-336681899
@@ -248,6 +260,18 @@ void loop() {
   if ( pumpOn == true && thisSecond > pumpTimeOn + pumpTime )  //basic pump timer
   {
     turnPumpOff();
+  }
+  if ( soilMoisture > minMoisture && pumpOn == false && tmMinute == 0 )  //if moisture is good and pump is off and it's top of the hour, take a nap
+  {
+    if ( Serial )
+    {
+      Serial.println("snoozer");
+    }
+    moistureFeed->save("DEVICE: sleep");
+    display.clearDisplay();
+    display.display();
+    delay(1000);
+    esp_deep_sleep_start();  //take a snoozer
   }
 }
 void turnPumpOff()
