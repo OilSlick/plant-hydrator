@@ -35,7 +35,7 @@ int pumpTime = 35;                    //How many seconds of pumping
 int pumpTimeOn;                       //Track when pump was turned on
 int thisSecond;                       //right.this.second
 int lastPumpOn = 0;                   //prevent over-watering
-int PumpOnceInHours = 8;              //example; 24 = pump only once every 24 hours
+int PumpOnceInHours = 5;              //example; 24 = pump only once every 24 hours
 bool recentlyPumped = false;          //Resets at currenthour + PumpOnceInHours
 int lastPumpHour;                     //track hour of last pump time
 int minMoisture = 30;                 //Minimum moisture percentage before pump turns on (or after-which it turns off)
@@ -181,6 +181,9 @@ void loop() {
     Serial.println( lastPumpHour );
     Serial.print("minMoisture: ");
     Serial.println( minMoisture );
+    Serial.println(" ");
+    Serial.print("soilMoisture: ");
+    Serial.println(soilMoisture);
 
     Serial.println("=======================");
   } else if ( debugPrinted == true && ( tmSecond % 15 != 0) )
