@@ -66,7 +66,7 @@ int tmWeekday;
 AdafruitIO_Feed *moistureFeed = io.feed("moisture-log");
 
 void setup() {
-  btStop();  //shut down bluetooth and save some power from: https://desire.giesecke.tk/index.php/2018/02/05/switch-off-bluetooth-and-wifi/
+  btStop();  //shut down bluetooth and save some power from: https://desire.giesecke.tk/index.php/2018/02/05/switch-off-bluetooth-and-wifi/ (0.051W, 0.01A)
   
   //Increment boot number and print it every reboot
   ++bootCount;
