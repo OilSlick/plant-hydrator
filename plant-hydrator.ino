@@ -9,7 +9,7 @@
 
 //enable deep sleep from http://educ8s.tv/esp32-deep-sleep-tutorial/
 #define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  3360        /* Time ESP32 will go to sleep (in seconds) */
+//#define TIME_TO_SLEEP  3360        /* Time ESP32 will go to sleep (in seconds) */
 RTC_DATA_ATTR int bootCount = 0;
 
 //Begin OLED shite
@@ -74,7 +74,7 @@ void setup() {
   
   Serial.println("Boot number: " + String(bootCount));
   //configure sleep time
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   
   analogReadResolution(12); //default is 12 (bits)
   analogSetAttenuation(ADC_11db);
@@ -263,7 +263,7 @@ void loop() {
     {
       Serial.println("snoozer");
     }
-    //moistureFeed->save("DEVICE: sleep");
+    esp_sleep_enable_timer_wakeup(3360 * uS_TO_S_FACTOR);  //take a 56 minute snoozer.
     display.clearDisplay();
     display.display();
     delay(1000);
