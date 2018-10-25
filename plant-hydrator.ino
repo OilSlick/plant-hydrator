@@ -183,23 +183,8 @@ void loop() {
   if ( debug == true && debugPrinted == false && ( tmSecond % 15 == 0) )  //every 15 seconds, print debug data
   {
     debugPrinted = true;
-    Serial.println(" ");
-    printLocalTime();
-    Serial.print("WiFiError: ");
-    Serial.println( WiFiError );
-    Serial.print("IOconnERROR: ");
-    Serial.println( IOconnERROR );
-    Serial.print("recently pumped: ");
-    Serial.println( recentlyPumped );
-    Serial.print("lastPumpHour: ");
-    Serial.println( lastPumpHour );
-    Serial.print("minMoisture: ");
-    Serial.println( minMoisture );
-    Serial.println(" ");
-    Serial.print("soilMoisture: ");
-    Serial.println(soilMoisture);
-
-    Serial.println("=======================");
+    displayDebug();
+        
   } else if ( debugPrinted == true && ( tmSecond % 15 != 0) )
   {
     debugPrinted = false;
@@ -208,9 +193,11 @@ void loop() {
   if ( rawReading == 0 )
   {
     moistError = 1;
+    //moistureFeed->save("Moisture sensor disconnected");
   }
   else 
   {
+    moistError = 0;
     if ( tmMinute == 0 && loggedMoisture == false )               //top of every hour, log moisture
     {
       moistureFeed->save( soilMoisture );
@@ -246,7 +233,7 @@ void loop() {
     displayTimeMoisture();
   }
   
-  if ( soilMoisture < minMoisture && timeError == false && recentlyPumped == false ) 
+  if ( soilMoisture < minMoisture && timeError == false && recentlyPumped == false && moistError != 1 ) 
   {
     recentlyPumped = true;
     lastPumpHour = tmHour;
@@ -339,6 +326,36 @@ void displayTime()
 }
 void displayTimeMoisture()
 {
+  if ( debug == true )
+  {
+    getTimeValues();
+    display.setTextSize(1);
+    display.setCursor(0,0);
+    display.println(&timeinfo, "%H:%M");
+    if ( moistError == 1 )
+    {
+      display.println("moistError");
+    }
+    if ( WiFiError == 1 )
+    {
+      display.println("WiFiError");
+    }
+    if ( IOconnERROR == 1 )
+    {
+      display.println("IOconnERROR");
+    }
+    //display vertically full here. start at 64,0 next
+    if ( recentlyPumped == true )
+    {
+      display.setTextSize(1);
+      display.setCursor(121,25);
+      display.print("*");
+    }
+    display.display(); 
+    display.clearDisplay();
+    
+  } else 
+  {
   getTimeValues();
   display.setTextSize(3);
   display.setCursor(0,0);
@@ -349,11 +366,6 @@ void displayTimeMoisture()
   display.setCursor(90,10);
   display.print(soilMoisture);
   display.print("%");
-  if ( debug == true )
-  {
-    display.setCursor(90,20);
-    display.print("Debug");
-  }
   display.setCursor(0,25);
   display.print("Lowest raw: ");
   display.print( lowestRaw );
@@ -365,6 +377,7 @@ void displayTimeMoisture()
   }
   display.display(); 
   display.clearDisplay();
+  }
 } //END displayTimeMoisture()
 
 void getTimeValues()
@@ -461,3 +474,25 @@ void Connect()
     Serial.println("Time not set");
   }
 } //END Connect() 
+void displayDebug()
+{
+  Serial.println(" ");
+  printLocalTime();
+  Serial.print("WiFiError: ");
+  Serial.println( WiFiError );
+  Serial.print("IOconnERROR: ");
+  Serial.println( IOconnERROR );
+  Serial.print("moistError: ");
+  Serial.println( moistError );
+  Serial.print("recently pumped: ");
+  Serial.println( recentlyPumped );
+  Serial.print("lastPumpHour: ");
+  Serial.println( lastPumpHour );
+  Serial.print("minMoisture: ");
+  Serial.println( minMoisture );
+  Serial.println(" ");
+  Serial.print("soilMoisture: ");
+  Serial.println(soilMoisture);
+  Serial.println("=======================");
+} //End displayDebug()
+
