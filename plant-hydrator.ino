@@ -40,10 +40,10 @@ bool pumpOn = false;                  //track pump status
 int pumpTime = 35;                    //How many seconds of pumping
 int pumpTimeOn;                       //Track when pump was turned on
 int thisSecond;                       //right.this.second
-int lastPumpOn = 0;                   //prevent over-watering
+RTC_DATA_ATTR int lastPumpOn = 0;     //prevent over-watering
 int PumpOnceInHours = 24;             //example; 24 = pump only once every 24 hours
-bool recentlyPumped = false;          //Resets at currenthour + PumpOnceInHours
-int lastPumpHour;                     //track hour of last pump time
+RTC_DATA_ATTR bool recentlyPumped = false;          //Resets at currenthour + PumpOnceInHours
+RTC_DATA_ATTR int lastPumpHour;       //track hour of last pump time
 int minMoisture = 30;                 //Minimum moisture percentage before pump turns on (or after-which it turns off)
 
 bool loggedMoisture = false;          //log moisture to io.Adafruit only once an hour
