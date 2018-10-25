@@ -29,7 +29,7 @@ int soilMoisture;                     //soil moisture reading from hygrometer
 int lowestRaw = 2047;                 //used while calibrating
 int rawReading;                       //the raw reading from FC-28
 
-bool debug = true;                   //Enable debugging with "true"
+bool debug = false;                   //Enable debugging with "true"
 bool debugPrinted = false;            //track if we've printed debug data (don't spam serial console)
 
 bool WiFiError = false;               //Track WiFi connection error
@@ -171,7 +171,7 @@ void setup() {
   display.display(); 
   display.clearDisplay();
   moistureFeed->save("DEVICE: ready");
-}
+} //END setup()
 
 void loop() {
   if ( WiFiError != 0)   //If pervious wifi error, re-attempt connection
@@ -282,7 +282,8 @@ void loop() {
     delay(1000);
     esp_deep_sleep_start();  //take a snoozer
   }
-}
+} //END loop()
+
 void turnPumpOff()
 {
   digitalWrite(PumpPin, LOW);       //turn pump off 
@@ -292,14 +293,16 @@ void turnPumpOff()
   {
     Serial.println("Pump Off");
   }
-}
+} //END turnPumpOff()
+
 void readMoisture()
 {
   soilMoisture = analogRead(hygroPin);
   rawReading = soilMoisture;
   soilMoisture = constrain(soilMoisture, 1200, 4095);
   soilMoisture = map(soilMoisture, 1200, 4095, 100, 0); //Low voltage/analog read = high moisture content
-}
+}  //END readMoisture()
+
 void cycleCheck()
 {
   getTimeValues();
@@ -315,7 +318,8 @@ void cycleCheck()
       moistureFeed->save("New pump cycle");
     }
   }
-}
+} //END cycleCheck()
+
 void displayTime()
 {
   getTimeValues();
@@ -337,7 +341,7 @@ void displayTimeMoisture()
   display.setCursor(90,10);
   display.print(soilMoisture);
   display.print("%");
-  if ( debug == true );
+  if ( debug == true )
   {
     display.setCursor(90,20);
     display.print("Debug");
@@ -353,7 +357,8 @@ void displayTimeMoisture()
   }
   display.display(); 
   display.clearDisplay();
-}
+} //END displayTimeMoisture()
+
 void getTimeValues()
 {
   if (!getLocalTime(&timeinfo)) {
@@ -370,7 +375,8 @@ void getTimeValues()
   tmMonth = timeinfo.tm_mon + 1;
   tmYear = timeinfo.tm_year + 1900;
   tmWeekday = timeinfo.tm_wday + 1;
-}
+} //END getTimeValues()
+
 void printLocalTime()
 {
   if (!getLocalTime(&timeinfo)) {
@@ -382,7 +388,8 @@ void printLocalTime()
   }
   Serial.println(&timeinfo, "%A, %d %B %Y %H:%M:%S");
   //Parameters see: http://www.cplusplus.com/reference/ctime/strftime/
-}
+} //END printLocalTime()
+
 void Connect()
 {
   if ( WiFiError == 0 )
@@ -445,5 +452,4 @@ void Connect()
   } else {
     Serial.println("Time not set");
   }
-  
-}
+} //END Connect() 
