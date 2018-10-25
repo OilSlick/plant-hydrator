@@ -71,8 +71,12 @@ void setup() {
   
   //Increment boot number and print it every reboot
   ++bootCount;
+
+  if ( Serial ) 
+  {
+    Serial.println("Boot number: " + String(bootCount));
+  }
   
-  Serial.println("Boot number: " + String(bootCount));
   //configure sleep time
   //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   
@@ -171,7 +175,11 @@ void setup() {
   display.print(tmMinute);
   display.display(); 
   display.clearDisplay();
-  moistureFeed->save("DEVICE: ready");
+  if ( bootCount == 1 )  //only log device ready on cold boots
+  {
+    moistureFeed->save("DEVICE: ready");   
+  }
+  
 } //END setup()
 
 void loop() {
@@ -258,7 +266,7 @@ void loop() {
     turnPumpOff();
   }
   if ( (soilMoisture > minMoisture || recentlyPumped == true ) && pumpOn == false && debug == false && tmMinute == 0 )  //if moisture is good and pump is off and it's top of the hour, take a nap
-  {
+  {   
     if ( Serial )
     {
       Serial.println("snoozer");
@@ -270,7 +278,10 @@ void loop() {
     esp_deep_sleep_start();  //take a snoozer
   }
   else if ( ( soilMoisture > minMoisture || recentlyPumped == true ) && pumpOn == false && debug == false && ( tmMinute % 5 == 0 ) )
-  {
+  /*Am I being lazy here? Maybe I should just find the current minute 
+   * and then calculate the number of minutes to snooze to get to XX:56.
+   */
+  {   
     esp_sleep_enable_timer_wakeup(240 * uS_TO_S_FACTOR);  //take a four minute snoozer. 
     display.clearDisplay();
     display.display();
