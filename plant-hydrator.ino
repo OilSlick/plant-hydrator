@@ -35,12 +35,13 @@ bool debugPrinted = false;            //track if we've printed debug data (don't
 bool WiFiError = false;               //Track WiFi connection error
 bool IOconnERROR = false;             //Track connection failures
 bool timeError = false;               //If can't get time, keep pump off
+bool moistError = false;              //If moisture sensor disconnected, report an error
 bool pumpOn = false;                  //track pump status
 int pumpTime = 35;                    //How many seconds of pumping
 int pumpTimeOn;                       //Track when pump was turned on
 int thisSecond;                       //right.this.second
 int lastPumpOn = 0;                   //prevent over-watering
-int PumpOnceInHours = 24;              //example; 24 = pump only once every 24 hours
+int PumpOnceInHours = 24;             //example; 24 = pump only once every 24 hours
 bool recentlyPumped = false;          //Resets at currenthour + PumpOnceInHours
 int lastPumpHour;                     //track hour of last pump time
 int minMoisture = 30;                 //Minimum moisture percentage before pump turns on (or after-which it turns off)
@@ -204,25 +205,32 @@ void loop() {
     debugPrinted = false;
   }
   readMoisture();
-  if ( tmMinute == 0 && loggedMoisture == false )               //top of every hour, log moisture
+  if ( rawReading == 0 )
   {
-   moistureFeed->save( soilMoisture );
-   loggedMoisture = true;
-  } else if ( tmMinute != 0 && loggedMoisture == true )          //reset conditions so we can log again next hour
-  {
-    loggedMoisture = false;
+    moistError = 1;
   }
-  if ( soilMoisture > minMoisture && pumpOn == true )    //failsafe so we don't over-water if pump timer fails or soil hydrated
-  { 
-    turnPumpOff(); 
-  }
-  
-  if ( rawReading < lowestRaw )
+  else 
   {
-    lowestRaw = rawReading;
-    Serial.print("New low (raw): ");
-    Serial.println(rawReading);
-    displayTimeMoisture();
+    if ( tmMinute == 0 && loggedMoisture == false )               //top of every hour, log moisture
+    {
+      moistureFeed->save( soilMoisture );
+      loggedMoisture = true;
+    } else if ( tmMinute != 0 && loggedMoisture == true )          //reset conditions so we can log again next hour
+      {
+        loggedMoisture = false;
+      }
+      if ( soilMoisture > minMoisture && pumpOn == true )    //failsafe so we don't over-water if pump timer fails or soil hydrated
+      { 
+        turnPumpOff(); 
+      }
+      
+      if ( rawReading < lowestRaw )
+      {
+        lowestRaw = rawReading;
+        Serial.print("New low (raw): ");
+        Serial.println(rawReading);
+        displayTimeMoisture();
+      }
   }
   
   if ( WiFiError == 0 && IOconnERROR == 0 )
@@ -262,7 +270,7 @@ void loop() {
   {
     turnPumpOff();
   }
-  if ( soilMoisture > minMoisture && pumpOn == false && debug == false && tmMinute == 0 )  //if moisture is good and pump is off and it's top of the hour, take a nap
+  if ( (soilMoisture > minMoisture || recentlyPumped == true ) && pumpOn == false && debug == false && tmMinute == 0 )  //if moisture is good and pump is off and it's top of the hour, take a nap
   {
     if ( Serial )
     {
@@ -274,7 +282,7 @@ void loop() {
     delay(1000);
     esp_deep_sleep_start();  //take a snoozer
   }
-  else if ( soilMoisture > minMoisture && pumpOn == false && debug == false && ( tmMinute % 5 == 0 ) )
+  else if ( ( soilMoisture > minMoisture || recentlyPumped == true ) && pumpOn == false && debug == false && ( tmMinute % 5 == 0 ) )
   {
     esp_sleep_enable_timer_wakeup(240 * uS_TO_S_FACTOR);  //take a four minute snoozer. 
     display.clearDisplay();
