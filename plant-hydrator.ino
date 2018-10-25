@@ -107,7 +107,6 @@ void setup() {
     }
   }
   //Connect to WiFi
-  //wdt_reset();
   Connect();
   
   if ( WiFiError == 0)
@@ -175,7 +174,7 @@ void setup() {
 }
 
 void loop() {
-  if ( WiFiError != 0)
+  if ( WiFiError != 0)   //If pervious wifi error, re-attempt connection
   {
     Connect();
   }
@@ -338,6 +337,11 @@ void displayTimeMoisture()
   display.setCursor(90,10);
   display.print(soilMoisture);
   display.print("%");
+  if ( debug == true );
+  {
+    display.setCursor(90,20);
+    display.print("Debug");
+  }
   display.setCursor(0,25);
   display.print("Lowest raw: ");
   display.print( lowestRaw );
