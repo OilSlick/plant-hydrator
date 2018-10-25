@@ -68,10 +68,8 @@ void setup() {
   //Increment boot number and print it every reboot
   ++bootCount;
   Serial.println("Boot number: " + String(bootCount));
-  //First we configure the wake up source We set our ESP32 to wake up every 15 seconds
+  //configure sleep time
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-  Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) +
-  " Seconds");
   
   analogReadResolution(12); //default is 12 (bits)
   analogSetAttenuation(ADC_11db);
@@ -267,7 +265,15 @@ void loop() {
     {
       Serial.println("snoozer");
     }
-    moistureFeed->save("DEVICE: sleep");
+    //moistureFeed->save("DEVICE: sleep");
+    display.clearDisplay();
+    display.display();
+    delay(1000);
+    esp_deep_sleep_start();  //take a snoozer
+  }
+  else if ( soilMoisture > minMoisture && pumpOn == false && ( tmMinute % 5 == 0 ) )
+  {
+    esp_sleep_enable_timer_wakeup(240 * uS_TO_S_FACTOR);  //take a four minute snoozer. 
     display.clearDisplay();
     display.display();
     delay(1000);
