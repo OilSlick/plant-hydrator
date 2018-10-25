@@ -5,10 +5,11 @@
 #include <Wire.h>                     //For OLED
 #include <Adafruit_GFX.h>             //For OLED
 #include <Adafruit_SSD1306.h>         //For OLED
+#include <esp32-hal-bt.c>             //For Bluetooth (not yet utilized October 25, 2018)
 
 //enable deep sleep from http://educ8s.tv/esp32-deep-sleep-tutorial/
 #define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  3300        /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP  3360        /* Time ESP32 will go to sleep (in seconds) */
 RTC_DATA_ATTR int bootCount = 0;
 
 //Begin OLED shite
@@ -28,7 +29,7 @@ int soilMoisture;                     //soil moisture reading from hygrometer
 int lowestRaw = 2047;                 //used while calibrating
 int rawReading;                       //the raw reading from FC-28
 
-bool debug = false;                   //Enable debugging with "true"
+bool debug = true;                   //Enable debugging with "true"
 bool debugPrinted = false;            //track if we've printed debug data (don't spam serial console)
 
 bool WiFiError = false;               //Track WiFi connection error
@@ -65,8 +66,11 @@ int tmWeekday;
 AdafruitIO_Feed *moistureFeed = io.feed("moisture-log");
 
 void setup() {
+  btStop();  //shut down bluetooth and save some power from: https://desire.giesecke.tk/index.php/2018/02/05/switch-off-bluetooth-and-wifi/
+  
   //Increment boot number and print it every reboot
   ++bootCount;
+  
   Serial.println("Boot number: " + String(bootCount));
   //configure sleep time
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
@@ -249,7 +253,7 @@ void loop() {
     digitalWrite(PumpPin, HIGH);       //turn pump on 
     pumpOn = true;
     display.setTextSize(2);
-    display.setCursor(0,0);
+    display.setCursor(10,0);
     display.println("Pump on");
     display.display(); 
     display.clearDisplay();
@@ -259,7 +263,7 @@ void loop() {
   {
     turnPumpOff();
   }
-  if ( soilMoisture > minMoisture && pumpOn == false && tmMinute == 0 )  //if moisture is good and pump is off and it's top of the hour, take a nap
+  if ( soilMoisture > minMoisture && pumpOn == false && debug == false && tmMinute == 0 )  //if moisture is good and pump is off and it's top of the hour, take a nap
   {
     if ( Serial )
     {
@@ -271,7 +275,7 @@ void loop() {
     delay(1000);
     esp_deep_sleep_start();  //take a snoozer
   }
-  else if ( soilMoisture > minMoisture && pumpOn == false && ( tmMinute % 5 == 0 ) )
+  else if ( soilMoisture > minMoisture && pumpOn == false && debug == false && ( tmMinute % 5 == 0 ) )
   {
     esp_sleep_enable_timer_wakeup(240 * uS_TO_S_FACTOR);  //take a four minute snoozer. 
     display.clearDisplay();
